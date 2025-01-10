@@ -16,3 +16,4 @@ eMD=0.0
 
 python decompose_velocities.py $trajectory $logfreq $atom_indices $startframe  $endframe
 python two_phase_dos.py $trajectory $timestep $sigma $reference_mol $temperature $eMD
+python plot_2pt.py
