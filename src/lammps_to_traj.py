@@ -15,7 +15,7 @@ from ase.calculators.lammps import convert
 def main():
     infile = sys.argv[1]
     trajname = sys.argv[2]
-    lammps_dump_text_to_traj(infile, trajname, units="real")
+    lammps_dump_text_to_traj(infile, trajname, units=sys.argv[3])
 
 
 def lammps_data_to_ase_atoms(
