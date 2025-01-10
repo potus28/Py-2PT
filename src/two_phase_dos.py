@@ -1,4 +1,5 @@
 import sys
+import pandas as pd
 import numpy as np
 from ase import units
 from ase.io import read, write
@@ -8,6 +9,9 @@ from scipy import constants
 from scipy.signal import savgol_filter
 from scipy.integrate import simpson
 from scipy.optimize import fsolve
+
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 
 traj = Trajectory(sys.argv[1])
@@ -106,7 +110,6 @@ def derivative_fluidicity(f, diff):
 def get_fluidicity(diff, f = 0.5, niter=100):
     converged = False
 
-    print("Solving for fluidicity")
     print("Iter Fluidicity Convergence")
 
     for count in range(niter):
@@ -167,11 +170,11 @@ def solid_weights(beta, freq):
     w_A = w_E - w_S
     #w_A = np.log((1.0 - np.exp(-arg)/(np.exp(-0.5*arg))))
 
-    print("Solid weights")
-    print(w_E[0:5])
-    print(w_S[0:5])
-    print(w_A[0:5])
-    print()
+    #print("Solid weights")
+    #print(w_E[0:5])
+    #print(w_S[0:5])
+    #print(w_A[0:5])
+    #print()
     weights = {
             "energy": w_E,
             "entropy": w_S,
@@ -250,25 +253,25 @@ def rotational_temperature(pmi):
 
 def two_phase_integral(freq, mode, Sv, w_solid, w_gas = None):
 
-    print(mode)
+    #print(mode)
     integrand = Sv['solid']*w_solid[mode]
     integrand[0] = 0.0 # Hack to account for 0 frequency solid modes are 0 for the DOS and infinite in the weight formulas
-    print("Solid Dos:", Sv["solid"])
-    print("Solid Weight:", w_solid[mode])
-    print("Solid Integrand:", integrand)
+    #print("Solid Dos:", Sv["solid"])
+    #print("Solid Weight:", w_solid[mode])
+    #print("Solid Integrand:", integrand)
     solid = simpson(integrand, x = freq)
 
     if w_gas is not None:
         integrand = Sv['gas']*w_gas[mode]
-        print("Gas Dos:", Sv["gas"])
-        print("Gas Weight:", w_gas[mode])
-        print("Gas Integrand:", integrand)
+        #print("Gas Dos:", Sv["gas"])
+        #print("Gas Weight:", w_gas[mode])
+        #print("Gas Integrand:", integrand)
         gas = simpson(integrand, x = freq)
         m = gas + solid
     else:
         m = solid
 
-    print()
+    #print()
     return m
 
 
@@ -277,15 +280,19 @@ freq_tot, Sv_tot = calculate_and_smooth_powerspectra('vtot.npy', beta, masses, t
 freq_trn, Sv_trn = calculate_and_smooth_powerspectra('vtrn.npy', beta, masses, timestep)
 freq_rot, Sv_rot = calculate_and_smooth_powerspectra('vangular.npy', beta, np.ones(len(masses)), timestep)
 freq_vib, Sv_vib = calculate_and_smooth_powerspectra('vvib.npy', beta, masses, timestep)
+print()
 
 ndof = simpson(Sv_tot, x=freq_tot)
 print("Integral of total DOS (total degrees of freedom):", ndof)
 print("3*N_atoms:", 3*natoms)
+print()
 
+print("Self Diffusion Coefficients (m^2/s)")
 print("D tot:", diffusion_coefficient(beta, reference_mass, nmolecules, Sv_tot))
 print("D trn:", diffusion_coefficient(beta, reference_mass, nmolecules, Sv_trn))
 print("D rot:", diffusion_coefficient(beta, reference_mass, nmolecules, Sv_rot))
 print("D vib:", diffusion_coefficient(beta, reference_mass, nmolecules, Sv_vib))
+print()
 
 diff_trn = dimensionless_diffusivity(beta, volume, nmolecules, reference_mass, Sv_trn)
 diff_rot = dimensionless_diffusivity(beta, volume, nmolecules, reference_mass, Sv_rot)
@@ -304,6 +311,7 @@ print("Translation Diffusion:", diff_trn)
 print("Translation Fluidicity:", f_trn)
 print("Rotational Diffusion:", diff_rot)
 print("Rotation Fluidicity:", f_rot)
+print()
 
 w_solid_trn = solid_weights(beta, freq_trn)
 w_solid_rot = solid_weights(beta, freq_rot)
@@ -334,49 +342,34 @@ energy_components = {
             },
 }
 
-print(energy_components)
+
+
+
+#print(energy_components)
+#print()
+
+print("Total Energy (J/mol) and Entropy (J/mol/K)")
 for energy, value_dict in energy_components.items():
     total = 0
     for mode, value in value_dict.items():
         total += value
     print(energy, total * units.mol/units.J)
 
-fig, axs = plt.subplots(nrows=3, ncols=1, figsize=(3.5,6.5), dpi=600, layout='constrained')
+df = pd.DataFrame(
+        {
+            "Freq (1/cm)": freq_tot,
+            "Sv_tot (cm)": Sv_tot,
+            "Sv_trn (cm)": Sv_trn,
+            "Sv_trn_g (cm)": Sv_trn_2pt["gas"],
+            "Sv_trn_s (cm)": Sv_trn_2pt["solid"],
+            "Sv_rot (cm)": Sv_rot,
+            "Sv_rot_g (cm)": Sv_rot_2pt["gas"],
+            "Sv_rot_s (cm)": Sv_rot_2pt["solid"],
+            "Sv_vib (cm)": Sv_vib,
+            "Sv_vib_g (cm)": Sv_vib_2pt["gas"],
+            "Sv_vib_s (cm)": Sv_vib_2pt["solid"],
+            }
+        )
 
-ax = axs[0]
-ax.plot(freq_tot, Sv_tot, label = "Total")
-ax.plot(freq_trn, Sv_trn, label = "Trn")
-ax.plot(freq_rot, Sv_rot, label = "Rot")
-ax.plot(freq_vib, Sv_vib, label = "Vib")
 
-ax.set_xlim((0, 1000))
-#ax.set_ylim((0, 12))
-ax.set_xlabel(r"$\nu$ (1/cm)")
-ax.set_ylabel(r"S($\nu$) (cm)")
-ax.legend()
-
-ax = axs[1]
-ax.plot(freq_trn, Sv_trn, label = "Trn")
-ax.plot(freq_trn, Sv_trn_2pt['gas'], label = "Trn(g)")
-ax.plot(freq_trn, Sv_trn_2pt['solid'], label = "Trn(s)")
-
-ax.set_xlim((0, 500))
-#ax.set_ylim((0, 12))
-ax.set_xlabel(r"$\nu$ (1/cm)")
-ax.set_ylabel(r"S($\nu$) (cm)")
-
-ax.legend()
-
-ax = axs[2]
-ax.plot(freq_rot, Sv_rot, label = "Rot")
-ax.plot(freq_rot, Sv_rot_2pt['gas'], label = "Rot(g)")
-ax.plot(freq_rot, Sv_rot_2pt['solid'], label = "Rot(s)")
-
-ax.set_xlim((0, 1000))
-#ax.set_ylim((0, 4))
-ax.set_xlabel(r"$\nu$ (1/cm)")
-ax.set_ylabel(r"S($\nu$) (cm)")
-
-ax.legend()
-
-fig.savefig('Sv.png')
+df.to_csv('sv.csv', index=False)
