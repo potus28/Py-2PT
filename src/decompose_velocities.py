@@ -16,9 +16,7 @@ traj = Trajectory(sys.argv[1])[start:stop]
 
 # Assumptions:
 # 1) molecular identity does not change over the simulation
-# 2) the trajectory has been preprocesed to only include molecules you wish to calculate over
-#    the simulation length you wish to calculate
-# 3) Number of molecules stays constant
+# 2) Number of molecules stays constant
 
 @njit
 def center_of_mass(masses, positions):
