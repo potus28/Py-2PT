@@ -196,8 +196,8 @@ nframes = len(traj)
 #temps = np.zeros(nframes)
 #energies = np.zeros(nframes)
 
-for atoms in traj:
-
+for tmp in traj:
+    atoms = tmp[indices]
     if frame == 0:
         cutoffs = natural_cutoffs(atoms, mult = 0.85)
         neighbor_list = NeighborList(cutoffs, self_interaction=False, bothways=True)
